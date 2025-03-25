@@ -261,5 +261,148 @@ MMSI=244150015</desc>
       <opencpn:scale_min_max UseScale="false" ScaleMin="2147483646" ScaleMax="0" />
     </extensions>
   </wpt>
-</gpx>
 
+  <!-- Busan Container Terminal Traffic -->
+  <wpt lat="35.104722" lon="129.087778">
+    <time>2024-03-13T10:00:00Z</time>
+    <name>HYUNDAI SUPREME</name>
+    <desc>HEADING=045
+SPEED=12.5
+STATUS=0
+MMSI=441234001</desc>
+    <sym>triangle</sym>
+    <type>WPT</type>
+  </wpt>
+
+  <!-- Ulsan Industrial Traffic -->
+  <wpt lat="35.485833" lon="129.391667">
+    <time>2024-03-13T10:00:00Z</time>
+    <name>ULSAN PIONEER</name>
+    <desc>HEADING=315
+SPEED=8.5
+STATUS=0
+MMSI=441234002</desc>
+    <sym>triangle</sym>
+    <type>WPT</type>
+  </wpt>
+
+  <!-- Incheon-China Route -->
+  <wpt lat="37.450000" lon="126.375000">
+    <time>2024-03-13T10:00:00Z</time>
+    <name>SINOKOR SEOUL</name>
+    <desc>HEADING=270
+SPEED=15.2
+STATUS=0
+MMSI=441234003</desc>
+    <sym>triangle</sym>
+    <type>WPT</type>
+  </wpt>
+
+  <!-- Jeju Strait Traffic -->
+  <wpt lat="33.529167" lon="126.543056">
+    <time>2024-03-13T10:00:00Z</time>
+    <name>JEJU HARMONY</name>
+    <desc>HEADING=090
+SPEED=14.8
+STATUS=0
+MMSI=441234004</desc>
+    <sym>triangle</sym>
+    <type>WPT</type>
+  </wpt>
+
+  <!-- Coastal Route - East Coast -->
+  <wpt lat="36.350000" lon="129.450000">
+    <time>2024-03-13T10:00:00Z</time>
+    <name>POHANG STAR</name>
+    <desc>HEADING=015
+SPEED=11.3
+STATUS=0
+MMSI=441234005</desc>
+    <sym>triangle</sym>
+    <type>WPT</type>
+  </wpt>
+
+  <!-- International Route - Japan Direction -->
+  <wpt lat="34.950000" lon="129.850000">
+    <time>2024-03-13T10:00:00Z</time>
+    <name>ASIAN MAJESTY</name>
+    <desc>HEADING=090
+SPEED=16.5
+STATUS=0
+MMSI=441234006</desc>
+    <sym>triangle</sym>
+    <type>WPT</type>
+  </wpt>
+
+  <!-- Yellow Sea Traffic -->
+  <wpt lat="35.750000" lon="125.250000">
+    <time>2024-03-13T10:00:00Z</time>
+    <name>YELLOW SEA TRADER</name>
+    <desc>HEADING=315
+SPEED=13.7
+STATUS=0
+MMSI=441234007</desc>
+    <sym>triangle</sym>
+    <type>WPT</type>
+  </wpt>
+
+  <!-- Busan-Japan Ferry Route -->
+  <wpt lat="35.116667" lon="129.316667">
+    <time>2024-03-13T10:00:00Z</time>
+    <name>KOREA FERRY</name>
+    <desc>HEADING=110
+SPEED=19.5
+STATUS=0
+MMSI=441234008</desc>
+    <sym>triangle</sym>
+    <type>WPT</type>
+  </wpt>
+
+  <!-- Own Ship - Near Busan -->
+  <wpt lat="35.095833" lon="129.079167">
+    <time>2024-03-13T10:00:00Z</time>
+    <name>AIS-OWN</name>
+    <desc>HEADING=045
+SPEED=10.0
+STATUS=0
+MMSI=441234000</desc>
+    <sym>triangle</sym>
+    <type>WPT</type>
+  </wpt>
+
+  <!-- LNG Carrier to Incheon -->
+  <wpt lat="37.250000" lon="126.166667">
+    <time>2024-03-13T10:00:00Z</time>
+    <name>LNG INCHEON</name>
+    <desc>HEADING=350
+SPEED=11.8
+STATUS=0
+MMSI=441234009</desc>
+    <sym>triangle</sym>
+    <type>WPT</type>
+  </wpt>
+
+  <!-- Bulk Carrier in Yellow Sea -->
+  <wpt lat="36.166667" lon="125.833333">
+    <time>2024-03-13T10:00:00Z</time>
+    <name>BULK PIONEER</name>
+    <desc>HEADING=280
+SPEED=12.3
+STATUS=0
+MMSI=441234010</desc>
+    <sym>triangle</sym>
+    <type>WPT</type>
+  </wpt>
+
+  <!-- Tanker near Ulsan -->
+  <wpt lat="35.416667" lon="129.458333">
+    <time>2024-03-13T10:00:00Z</time>
+    <name>ULSAN TANKER</name>
+    <desc>HEADING=195
+SPEED=9.7
+STATUS=0
+MMSI=441234011</desc>
+    <sym>triangle</sym>
+    <type>WPT</type>
+  </wpt>
+</gpx>

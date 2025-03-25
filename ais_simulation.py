@@ -16,7 +16,12 @@ from random import random
 #UDP broadcasting
 sendsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 sendsocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-print ("--- Broadcasting NMEA messges to UDP:10110")
+sendsocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+try:
+    sendsocket.bind(('', 0))  # Bind to any available port
+except Exception as e:
+    print(f"Warning: Could not bind socket: {str(e)}")
+print("--- Broadcasting NMEA messages to UDP:10110")
 
 listensocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 listensocket.bind(("", 20220))
@@ -174,12 +179,29 @@ def dbk_message(i_dbk):
     return result
 
 
+def send_nmea(message, frame=None):
+    """Send NMEA message and optionally display it"""
+    print(f"Sending NMEA: {message.strip()}")  # Print to console
+    try:
+        sendsocket.sendto(message.encode(), ('255.255.255.255', 10110))
+        # Also try localhost
+        sendsocket.sendto(message.encode(), ('127.0.0.1', 10110))
+        # And try network broadcast
+        sendsocket.sendto(message.encode(), ('<broadcast>', 10110))
+        # Update GUI if frame is provided
+        if frame:
+            frame.update_nmea(message.strip())
+    except Exception as e:
+        print(f"Error sending NMEA: {str(e)}")
+
+
 class Simulation(object):
 
     boats = []
     ownBoat = []
     paused = False
     speedup = 60
+    frame = None  # Reference to GUI frame
 
     c=0 # progress counter
     
@@ -210,7 +232,8 @@ class Simulation(object):
 
 
     class Boat(object):
-        def __init__(self, mmsi, name, lat, lon, heading, speed, status, maneuver, own):
+        def __init__(self, simulation, mmsi, name, lat, lon, heading, speed, status, maneuver, own):
+            self.simulation = simulation
             self.mmsi = mmsi
             self.name = name
             self.lat = float(lat)
@@ -226,7 +249,51 @@ class Simulation(object):
             self.twv = 0
             self.curs = 0
             self.curd = 0
+            
+            # Initialize waypoints based on vessel type and location
+            self.waypoints = self.get_route_waypoints()
+            self.current_waypoint = 0
+            self.route_completed = False
 
+        def get_route_waypoints(self):
+            """Define waypoints based on vessel type and location"""
+            if "HYUNDAI" in self.name:  # Busan container routes
+                return [(35.104722, 129.087778),  # Busan
+                       (35.150000, 129.200000),   # Exit Busan port
+                       (35.200000, 129.400000)]   # Head to open sea
+            elif "ULSAN" in self.name:  # Ulsan routes
+                return [(35.485833, 129.391667),  # Ulsan
+                       (35.500000, 129.450000),   # Exit port
+                       (35.550000, 129.500000)]   # Industrial route
+            elif "INCHEON" in self.name or "SINOKOR" in self.name:  # Incheon-China
+                return [(37.450000, 126.375000),  # Incheon
+                       (37.400000, 126.300000),   # Exit port
+                       (37.300000, 126.000000)]   # Yellow Sea route
+            elif "JEJU" in self.name:  # Jeju routes
+                return [(33.529167, 126.543056),  # Jeju
+                       (33.500000, 126.700000),   # East route
+                       (33.450000, 127.000000)]   # Open sea
+            else:  # Default coastal route
+                return [(self.lat, self.lon),
+                       (self.lat + 0.1, self.lon + 0.1),
+                       (self.lat + 0.2, self.lon + 0.2)]
+
+        def calculate_new_heading(self, target_lat, target_lon):
+            """Calculate heading to next waypoint"""
+            dlat = target_lat - self.lat
+            dlon = target_lon - self.lon
+            heading = math.degrees(math.atan2(dlon * math.cos(math.radians(self.lat)), dlat))
+            return (heading + 360) % 360
+
+        def distance_to_waypoint(self, target_lat, target_lon):
+            """Calculate distance to waypoint in nautical miles"""
+            dlat = target_lat - self.lat
+            dlon = target_lon - self.lon
+            a = math.sin(math.radians(dlat/2)) * math.sin(math.radians(dlat/2)) + \
+                math.cos(math.radians(self.lat)) * math.cos(math.radians(target_lat)) * \
+                math.sin(math.radians(dlon/2)) * math.sin(math.radians(dlon/2))
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+            return 3440 * c  # Earth radius in NM * central angle
 
         def show(self):
             if self.own == False:
@@ -261,17 +328,48 @@ class Simulation(object):
             # TCP
             #sendsocket.sendall((my_message+"\r\n").encode('utf-8'))
 
-            # UDP
-            sendsocket.sendto((my_message).encode('utf-8'), ('<broadcast>', 10110))
+            # Use the simulation's frame reference for sending
+            send_nmea(my_message, self.simulation.frame if hasattr(self, 'simulation') else None)
             
         def move(self, speedup):
+            if self.route_completed:
+                return
+
+            # Get current target waypoint
+            if self.current_waypoint < len(self.waypoints):
+                target_lat, target_lon = self.waypoints[self.current_waypoint]
+                
+                # Calculate distance to waypoint
+                distance = self.distance_to_waypoint(target_lat, target_lon)
+                
+                # If close to waypoint, move to next one
+                if distance < 0.1:  # Within 0.1 NM
+                    self.current_waypoint += 1
+                    if self.current_waypoint >= len(self.waypoints):
+                        self.route_completed = True
+                        return
+                    target_lat, target_lon = self.waypoints[self.current_waypoint]
+                
+                # Update heading towards waypoint
+                target_heading = self.calculate_new_heading(target_lat, target_lon)
+                
+                # Gradually adjust heading (max 3 degrees per update)
+                heading_diff = (target_heading - self.heading + 180) % 360 - 180
+                if abs(heading_diff) > 3:
+                    self.heading += 3 if heading_diff > 0 else -3
+                else:
+                    self.heading = target_heading
+                self.heading = self.heading % 360
+
             elapsed = time.time() - self.last_move
-            self.lat = self.lat + elapsed * self.speed/3600/60 * speedup * math.cos(self.heading/180*math.pi)
-            self.lon = self.lon + elapsed * self.speed/3600/60 * speedup * math.sin(self.heading/180*math.pi) / math.cos(self.lat/180*math.pi)
             
-            if self.own == True: # apply current only to own boat
-                self.lat = self.lat + elapsed * self.curs/3600/60 * speedup * math.cos(self.curd/180*math.pi)
-                self.lon = self.lon + elapsed * self.curs/3600/60 * speedup * math.sin(self.curd/180*math.pi) / math.cos(self.lat/180*math.pi)
+            # Move based on current heading and speed
+            self.lat = self.lat + elapsed * self.speed/3600/60 * speedup * math.cos(math.radians(self.heading))
+            self.lon = self.lon + elapsed * self.speed/3600/60 * speedup * math.sin(math.radians(self.heading)) / math.cos(math.radians(self.lat))
+            
+            if self.own == True:  # apply current only to own boat
+                self.lat = self.lat + elapsed * self.curs/3600/60 * speedup * math.cos(math.radians(self.curd))
+                self.lon = self.lon + elapsed * self.curs/3600/60 * speedup * math.sin(math.radians(self.curd)) / math.cos(math.radians(self.lat))
 
             self.last_move = time.time()
 
@@ -317,7 +415,7 @@ class Simulation(object):
                 own=False
                 
             # print ('name=%s, mmsi=%s, lat=%s, lon=%s, heading=%s, speed=%s, status=%s' % (name, mmsi, lat, lon, heading, speed, status))
-            newBoat=self.Boat(mmsi, name, float(lat), float(lon), float(heading), float(speed), status, 0, own)
+            newBoat=self.Boat(self, mmsi, name, float(lat), float(lon), float(heading), float(speed), status, 0, own)
             self.boats.append(newBoat)
             if own:
                 global nmea_thread

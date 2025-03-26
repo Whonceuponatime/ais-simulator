@@ -180,31 +180,66 @@ def dbk_message(i_dbk):
 
 
 def send_nmea(message, frame=None):
-    """Send NMEA message and optionally display it"""
-    print(f"Sending NMEA: {message.strip()}")  # Print to console
+    """Send NMEA message via UDP"""
     try:
+        # Print message to console
+        print(f"Sending: {message.strip()}")
+        
+        # Broadcast to all devices on network
         sendsocket.sendto(message.encode(), ('255.255.255.255', 10110))
         # Also try localhost
         sendsocket.sendto(message.encode(), ('127.0.0.1', 10110))
         # And try network broadcast
         sendsocket.sendto(message.encode(), ('<broadcast>', 10110))
-        # Update GUI if frame is provided
-        if frame:
-            frame.update_nmea(message.strip())
     except Exception as e:
         print(f"Error sending NMEA: {str(e)}")
 
 
 class Simulation(object):
-
     boats = []
     ownBoat = []
     paused = False
     speedup = 60
-    frame = None  # Reference to GUI frame
-
-    c=0 # progress counter
     
+    def __init__(self):
+        self.c = 0  # progress counter
+    
+    def processBoats(self):
+        """Main simulation loop"""
+        if not self.paused:
+            self.moveBoats()
+        else:
+            self.showBoats()
+        self.timer = threading.Timer(1, self.processBoats)
+        self.timer.daemon = True  # Make timer thread a daemon
+        self.timer.start()
+
+    def moveBoats(self):
+        """Move all boats and show their positions"""
+        for boat in self.boats:
+            boat.move(self.speedup)
+            boat.show()
+            self.c += 1
+
+    def showBoats(self):
+        """Show current position of all boats"""
+        for boat in self.boats:
+            boat.show()
+
+    def stopBoats(self, event):
+        """Stop the simulation"""
+        try:
+            if hasattr(self, 'timer'):
+                self.timer.cancel()
+            print("Stopping simulation, stopped sending NMEA messages")
+        except:
+            pass
+
+    def wrapup(self):
+        """Clean up resources"""
+        print("Closing UDP socket")
+        sendsocket.close()
+
     def read_nmea_thread(self):
         while True:
             print ("Awaiting connection...")
@@ -426,29 +461,6 @@ class Simulation(object):
         return True
 
 
-    def processBoats(self):
-        if self.paused == False:
-            self.moveBoats()
-        else:
-            self.showBoats()
-        self.timer = threading.Timer(1, self.processBoats)
-        self.timer.start()
-    
-
-
-    def moveBoats(self):
-        for boat in self.boats:
-            boat.move(self.speedup)
-            boat.show()
-            self.c+=1
-        # print (self.c)
-
-
-    def showBoats(self):
-        for boat in self.boats:
-            boat.show()
-
-
     def startBoats(self, event):
         filename=event.GetEventObject().filename
         self.loadBoats(filename)
@@ -464,14 +476,6 @@ class Simulation(object):
             self.paused = False
         else:
             print ("*** No boats")
-
-
-    def stopBoats(self, event):
-        try:
-            self.timer.cancel()
-            print ("--- Stopping simulation, stop sending NMEA messages")
-        except:
-            pass
 
 
     def pauseBoats(self, event):
@@ -506,10 +510,5 @@ class Simulation(object):
         
     def setSpeedup(self, speedup):
         self.speedup = speedup
-        
-    def wrapup(self):
-        print ("--- Closing UDP socket")
-        sendsocket.close()
-        #listensocket.close()
 
 #simulation.moveBoats()

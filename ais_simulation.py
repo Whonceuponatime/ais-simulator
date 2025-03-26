@@ -179,7 +179,7 @@ def dbk_message(i_dbk):
     return result
 
 
-def send_nmea(message, frame=None):
+def send_nmea(message):
     """Send NMEA message via UDP"""
     try:
         # Print message to console
@@ -363,8 +363,8 @@ class Simulation(object):
             # TCP
             #sendsocket.sendall((my_message+"\r\n").encode('utf-8'))
 
-            # Use the simulation's frame reference for sending
-            send_nmea(my_message, self.simulation.frame if hasattr(self, 'simulation') else None)
+            # Send NMEA message
+            send_nmea(my_message)
             
         def move(self, speedup):
             if self.route_completed:

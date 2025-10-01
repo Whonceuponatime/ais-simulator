@@ -373,26 +373,26 @@ class Simulation(object):
             
         def move(self, speedup):
             # Get current target waypoint (circular route - never completed)
-            target_lat, target_lon = self.waypoints[self.current_waypoint]
-            
-            # Calculate distance to waypoint
-            distance = self.distance_to_waypoint(target_lat, target_lon)
-            
+                target_lat, target_lon = self.waypoints[self.current_waypoint]
+                
+                # Calculate distance to waypoint
+                distance = self.distance_to_waypoint(target_lat, target_lon)
+                
             # If close to waypoint, move to next one (circular)
             if distance < 0.02:  # Within 0.02 NM for tighter circle following
                 self.current_waypoint = (self.current_waypoint + 1) % len(self.waypoints)
-                target_lat, target_lon = self.waypoints[self.current_waypoint]
-            
-            # Update heading towards waypoint
-            target_heading = self.calculate_new_heading(target_lat, target_lon)
-            
+                    target_lat, target_lon = self.waypoints[self.current_waypoint]
+                
+                # Update heading towards waypoint
+                target_heading = self.calculate_new_heading(target_lat, target_lon)
+                
             # Gradually adjust heading (max 3 degrees per update for smoother circular motion)
-            heading_diff = (target_heading - self.heading + 180) % 360 - 180
-            if abs(heading_diff) > 3:
-                self.heading += 3 if heading_diff > 0 else -3
-            else:
-                self.heading = target_heading
-            self.heading = self.heading % 360
+                heading_diff = (target_heading - self.heading + 180) % 360 - 180
+                if abs(heading_diff) > 3:
+                    self.heading += 3 if heading_diff > 0 else -3
+                else:
+                    self.heading = target_heading
+                self.heading = self.heading % 360
 
             elapsed = time.time() - self.last_move
             

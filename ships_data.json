@@ -1,0 +1,42 @@
+[
+  {
+    "mmsi": 123456001,
+    "name": "CONTAINER_SHIP",
+    "lat": "35.104722",
+    "lon": "129.087778",
+    "heading": 45,
+    "speed": 15
+  },
+  {
+    "mmsi": 123456002,
+    "name": "CARGO_VESSEL",
+    "lat": "35.200000",
+    "lon": "129.200000",
+    "heading": 90,
+    "speed": 12
+  },
+  {
+    "mmsi": 123456003,
+    "name": "TANKER",
+    "lat": "35.000000",
+    "lon": "129.000000",
+    "heading": 180,
+    "speed": 18
+  },
+  {
+    "mmsi": 123456004,
+    "name": "FISHING_BOAT",
+    "lat": "35.150000",
+    "lon": "129.150000",
+    "heading": 270,
+    "speed": 8
+  },
+  {
+    "mmsi": 123456005,
+    "name": "PASSENGER_FERRY",
+    "lat": "35.250000",
+    "lon": "129.250000",
+    "heading": 0,
+    "speed": 20
+  }
+]

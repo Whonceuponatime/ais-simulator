@@ -104,7 +104,7 @@ def ais_message5(i_mtype, i_repeat, i_mmsi, i_version, i_imo, i_callsign, i_name
     return tempstr1 + '*' + nmeaChecksum(tempstr1) + "\r\n" + tempstr2 + '*' + nmeaChecksum(tempstr2) + "\r\n"
 
 
-def send_nmea(message):
+def send_nmea(message, ship_name="Unknown", callback=None):
     """Send NMEA message via UDP to OpenCPN"""
     try:
         # Print message to console (only first line to avoid spam)
@@ -124,14 +124,20 @@ def send_nmea(message):
             print("Sent to localhost")
         except Exception as e:
             print(f"Failed to send to localhost: {str(e)}")
+        
+        # Call callback to update GUI if provided
+        if callback:
+            callback(f"[{ship_name}] {first_line}")
             
     except Exception as e:
         print(f"Error in send_nmea: {str(e)}")
+        if callback:
+            callback(f"[ERROR] {str(e)}")
 
 
 class Ship:
     """Ship class for AIS simulation"""
-    def __init__(self, mmsi, name, lat, lon, heading, speed, status=0, own=False):
+    def __init__(self, mmsi, name, lat, lon, heading, speed, status=0, own=False, nmea_callback=None):
         self.mmsi = mmsi
         self.name = name
         self.lat = float(lat)
@@ -146,6 +152,7 @@ class Ship:
         self.twv = 0
         self.curs = 0
         self.curd = 0
+        self.nmea_callback = nmea_callback
         
         # Initialize circular route waypoints
         self.waypoints = self.get_route_waypoints()
@@ -231,20 +238,21 @@ class Ship:
             # Own boat messages (simplified)
             my_message = f"$GPRMC,{datetime.utcnow().strftime('%H%M%S')},A,{self.lat:.6f},N,{self.lon:.6f},E,{self.speed:.1f},{self.heading:.1f},{datetime.utcnow().strftime('%d%m%y')},,A*00\r\n"
         
-        send_nmea(my_message)
+        send_nmea(my_message, self.name, self.nmea_callback)
 
 
 class AISSimulator:
     """Main simulation class"""
-    def __init__(self):
+    def __init__(self, nmea_callback=None):
         self.ships = []
         self.paused = False
         self.speedup = 60
         self.timer = None
+        self.nmea_callback = nmea_callback
 
     def add_ship(self, mmsi, name, lat, lon, heading, speed, status=0, own=False):
         """Add a ship to the simulation"""
-        ship = Ship(mmsi, name, lat, lon, heading, speed, status, own)
+        ship = Ship(mmsi, name, lat, lon, heading, speed, status, own, self.nmea_callback)
         self.ships.append(ship)
         return ship
 
@@ -289,7 +297,7 @@ class AISSimulatorGUI:
         self.root.title("AIS Simulator - Circular Routes (Tkinter)")
         self.root.geometry("900x700")
         
-        self.simulator = AISSimulator()
+        self.simulator = AISSimulator(self.log_nmea_message)
         self.ships_data = []
         
         self.setup_ui()
@@ -384,13 +392,21 @@ class AISSimulatorGUI:
         self.stop_button.pack(side=tk.LEFT, padx=(0, 5))
         
         # Status frame
-        status_frame = ttk.LabelFrame(main_frame, text="Status", padding="10")
+        status_frame = ttk.LabelFrame(main_frame, text="Status & NMEA Messages", padding="10")
         status_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S))
         status_frame.columnconfigure(0, weight=1)
-        status_frame.rowconfigure(0, weight=1)
+        status_frame.rowconfigure(1, weight=1)
         
-        self.status_text = scrolledtext.ScrolledText(status_frame, height=8, state=tk.DISABLED)
-        self.status_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Status controls
+        status_controls = ttk.Frame(status_frame)
+        status_controls.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
+        
+        ttk.Button(status_controls, text="Clear Log", command=self.clear_log).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Label(status_controls, text="Real-time AIS NMEA0183 messages:").pack(side=tk.LEFT)
+        
+        self.status_text = scrolledtext.ScrolledText(status_frame, height=8, state=tk.DISABLED, 
+                                                   font=('Courier', 9), wrap=tk.WORD)
+        self.status_text.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Initial status message
         self.update_status("Ready to start simulation.\nAdd ships and click 'Start Simulation'.\nShips will follow circular routes around their starting positions.\nNMEA messages will be sent to OpenCPN at 192.168.10.100:10110.")
@@ -540,6 +556,28 @@ class AISSimulatorGUI:
         self.stop_button.config(state=tk.DISABLED)
         
         self.update_status("Simulation stopped.")
+
+    def log_nmea_message(self, message):
+        """Log NMEA message to the status text"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.status_text.config(state=tk.NORMAL)
+        self.status_text.insert(tk.END, f"\n[{timestamp}] {message}")
+        self.status_text.see(tk.END)
+        self.status_text.config(state=tk.DISABLED)
+        
+        # Limit the number of lines to prevent memory issues
+        lines = self.status_text.get("1.0", tk.END).split('\n')
+        if len(lines) > 1000:  # Keep only last 1000 lines
+            self.status_text.config(state=tk.NORMAL)
+            self.status_text.delete("1.0", f"{len(lines)-1000}.0")
+            self.status_text.config(state=tk.DISABLED)
+
+    def clear_log(self):
+        """Clear the status/NMEA log"""
+        self.status_text.config(state=tk.NORMAL)
+        self.status_text.delete("1.0", tk.END)
+        self.status_text.config(state=tk.DISABLED)
+        self.update_status("Log cleared.")
 
     def update_status(self, message):
         """Update the status text"""

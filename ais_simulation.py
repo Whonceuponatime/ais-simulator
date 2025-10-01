@@ -543,13 +543,77 @@ class ShipGrid(wx.grid.Grid):
         # Set column widths
         self.SetColSize(0, 100)
         self.SetColSize(1, 150)
-        self.SetColSize(2, 100)
-        self.SetColSize(3, 100)
+        self.SetColSize(2, 120)
+        self.SetColSize(3, 120)
         self.SetColSize(4, 80)
         self.SetColSize(5, 100)
         
         # Enable editing
         self.EnableEditing(True)
+        
+        # Set cell editors for better input
+        self.SetColFormatFloat(2, 6)  # Latitude with 6 decimal places
+        self.SetColFormatFloat(3, 6)  # Longitude with 6 decimal places
+        self.SetColFormatFloat(4, 1)  # Heading with 1 decimal place
+        self.SetColFormatFloat(5, 1)  # Speed with 1 decimal place
+        
+        # Bind events for validation
+        self.Bind(wx.grid.EVT_GRID_CELL_CHANGED, self.on_cell_changed)
+
+    def on_cell_changed(self, event):
+        """Validate cell data when changed"""
+        row = event.GetRow()
+        col = event.GetCol()
+        value = self.GetCellValue(row, col)
+        
+        # Validate based on column
+        if col == 0:  # MMSI
+            try:
+                mmsi = int(value)
+                if mmsi < 100000000 or mmsi > 999999999:
+                    self.SetCellTextColour(row, col, wx.RED)
+                else:
+                    self.SetCellTextColour(row, col, wx.BLACK)
+            except ValueError:
+                self.SetCellTextColour(row, col, wx.RED)
+        elif col == 2:  # Latitude
+            try:
+                lat = float(value)
+                if lat < -90 or lat > 90:
+                    self.SetCellTextColour(row, col, wx.RED)
+                else:
+                    self.SetCellTextColour(row, col, wx.BLACK)
+            except ValueError:
+                self.SetCellTextColour(row, col, wx.RED)
+        elif col == 3:  # Longitude
+            try:
+                lon = float(value)
+                if lon < -180 or lon > 180:
+                    self.SetCellTextColour(row, col, wx.RED)
+                else:
+                    self.SetCellTextColour(row, col, wx.BLACK)
+            except ValueError:
+                self.SetCellTextColour(row, col, wx.RED)
+        elif col == 4:  # Heading
+            try:
+                heading = float(value)
+                if heading < 0 or heading > 360:
+                    self.SetCellTextColour(row, col, wx.RED)
+                else:
+                    self.SetCellTextColour(row, col, wx.BLACK)
+            except ValueError:
+                self.SetCellTextColour(row, col, wx.RED)
+        elif col == 5:  # Speed
+            try:
+                speed = float(value)
+                if speed < 0 or speed > 50:
+                    self.SetCellTextColour(row, col, wx.RED)
+                else:
+                    self.SetCellTextColour(row, col, wx.BLACK)
+            except ValueError:
+                self.SetCellTextColour(row, col, wx.RED)
+        
+        event.Skip()
 
     def add_ship(self, mmsi="", name="", lat="", lon="", heading="", speed=""):
         """Add a new row with ship data"""
@@ -613,6 +677,24 @@ class ShipGrid(wx.grid.Grid):
         # Delete in reverse order to maintain indices
         for row in reversed(selected_rows):
             self.DeleteRows(row, 1)
+    
+    def clear_all_ships(self):
+        """Clear all ships from the grid"""
+        if self.GetNumberRows() > 0:
+            self.DeleteRows(0, self.GetNumberRows())
+    
+    def get_valid_ships_count(self):
+        """Get count of ships with valid coordinates"""
+        valid_count = 0
+        for row in range(self.GetNumberRows()):
+            try:
+                lat = float(self.GetCellValue(row, 2)) if self.GetCellValue(row, 2) else 0.0
+                lon = float(self.GetCellValue(row, 3)) if self.GetCellValue(row, 3) else 0.0
+                if lat != 0.0 or lon != 0.0:
+                    valid_count += 1
+            except ValueError:
+                continue
+        return valid_count
 
 
 class AISSimulatorFrame(wx.Frame):
@@ -655,11 +737,19 @@ class AISSimulatorFrame(wx.Frame):
         self.delete_ship_btn.Bind(wx.EVT_BUTTON, self.on_delete_ship)
         ship_btn_sizer.Add(self.delete_ship_btn, 0, wx.ALL, 5)
         
+        self.clear_all_btn = wx.Button(panel, label="Clear All")
+        self.clear_all_btn.Bind(wx.EVT_BUTTON, self.on_clear_all_ships)
+        ship_btn_sizer.Add(self.clear_all_btn, 0, wx.ALL, 5)
+        
         self.add_sample_btn = wx.Button(panel, label="Add Sample Ships")
         self.add_sample_btn.Bind(wx.EVT_BUTTON, self.on_add_sample_ships)
         ship_btn_sizer.Add(self.add_sample_btn, 0, wx.ALL, 5)
         
         ship_sizer.Add(ship_btn_sizer, 0, wx.ALIGN_CENTER)
+        
+        # Ship count display
+        self.ship_count_label = wx.StaticText(panel, label="Ships: 0")
+        ship_sizer.Add(self.ship_count_label, 0, wx.ALL | wx.CENTER, 5)
         main_sizer.Add(ship_sizer, 1, wx.EXPAND | wx.ALL, 10)
         
         # Control section
@@ -716,10 +806,23 @@ class AISSimulatorFrame(wx.Frame):
     def on_add_ship(self, event):
         """Add a new empty ship row"""
         self.ship_grid.add_ship()
+        self.update_ship_count()
         
     def on_delete_ship(self, event):
         """Delete selected ships"""
         self.ship_grid.delete_selected_rows()
+        self.update_ship_count()
+        
+    def on_clear_all_ships(self, event):
+        """Clear all ships from the grid"""
+        if self.ship_grid.GetNumberRows() > 0:
+            dlg = wx.MessageDialog(self, "Are you sure you want to clear all ships?", 
+                                 "Confirm Clear", wx.YES_NO | wx.ICON_QUESTION)
+            if dlg.ShowModal() == wx.ID_YES:
+                self.ship_grid.clear_all_ships()
+                self.update_ship_count()
+                self.update_status("All ships cleared.")
+            dlg.Destroy()
         
     def on_add_sample_ships(self, event):
         """Add some sample ships with realistic coordinates"""
@@ -734,6 +837,7 @@ class AISSimulatorFrame(wx.Frame):
         for ship in sample_ships:
             self.ship_grid.add_ship(**ship)
             
+        self.update_ship_count()
         self.update_status("Added 5 sample ships with realistic coordinates. Each will follow a circular route around its starting position.")
         
     def on_start_simulation(self, event):
@@ -808,6 +912,12 @@ class AISSimulatorFrame(wx.Frame):
         self.stop_btn.Enable(False)
         
         self.update_status("Simulation stopped.")
+        
+    def update_ship_count(self):
+        """Update the ship count display"""
+        total_ships = self.ship_grid.GetNumberRows()
+        valid_ships = self.ship_grid.get_valid_ships_count()
+        self.ship_count_label.SetLabel(f"Ships: {valid_ships}/{total_ships} (valid/total)")
         
     def update_status(self, message):
         """Update the status text"""
